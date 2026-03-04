@@ -28,8 +28,8 @@ trait IVotingSystem<TContractState> {
     /// Transition from Active to Ended (admin only)
     fn end_election(ref self: TContractState);
     
-    /// Cast a vote with nullifier and hidden vote (Active phase only)
-    fn cast_vote(ref self: TContractState, nullifier: felt252, hidden_vote: felt252);
+    /// Cast a vote with merkle proof, nullifier and hidden vote (Active phase only)
+    fn cast_vote(ref self: TContractState, leaf: felt252, proof: Array<felt252>, nullifier: felt252, hidden_vote: felt252);
 }
 
 /// Voting System Smart Contract
@@ -37,6 +37,7 @@ trait IVotingSystem<TContractState> {
 mod VotingSystem {
     use super::{ElectionState, IVotingSystem, ContractAddress};
     use starknet::get_caller_address;
+    use core::poseidon::poseidon_hash_two;
 
     #[storage]
     struct Storage {
@@ -108,9 +109,12 @@ mod VotingSystem {
             self.emit(Event::ElectionEnded(ElectionEnded {}));
         }
 
-        fn cast_vote(ref self: ContractState, nullifier: felt252, hidden_vote: felt252) {
+        fn cast_vote(ref self: ContractState, leaf: felt252, proof: Array<felt252>, nullifier: felt252, hidden_vote: felt252) {
             let current_state = self.election_state.read();
             assert(current_state == ElectionState::Active(()), 'Election is not active');
+            
+            let is_valid_proof = self._verify_merkle_proof(leaf, proof);
+            assert(is_valid_proof, 'Invalid Merkle Proof');
             
             let already_voted = self.used_nullifiers.read(nullifier);
             assert(!already_voted, 'Nullifier already used');
@@ -126,6 +130,31 @@ mod VotingSystem {
             let caller = get_caller_address();
             let admin = self.admin.read();
             assert(caller == admin, 'Only admin can call this');
+        }
+
+        fn _verify_merkle_proof(self: @ContractState, leaf: felt252, proof: Array<felt252>) -> bool {
+            let mut current_hash = leaf;
+            let stored_root = self.merkle_root.read();
+            
+            let mut i = 0;
+            loop {
+                if i >= proof.len() {
+                    break;
+                }
+                
+                let proof_element = proof[i];
+                
+                // Ensure consistent ordering: smaller value first
+                if current_hash <= proof_element {
+                    current_hash = poseidon_hash_two(current_hash, proof_element);
+                } else {
+                    current_hash = poseidon_hash_two(proof_element, current_hash);
+                };
+                
+                i += 1;
+            };
+            
+            current_hash == stored_root
         }
     }
 }
