@@ -19,11 +19,17 @@ trait IVotingSystem<TContractState> {
     /// Get the current admin address
     fn get_admin(self: @TContractState) -> ContractAddress;
     
+    /// Set merkle root for eligible voters (admin only, Setup phase only)
+    fn set_merkle_root(ref self: TContractState, root: felt252);
+    
     /// Transition from Setup to Active (admin only)
     fn start_election(ref self: TContractState);
     
     /// Transition from Active to Ended (admin only)
     fn end_election(ref self: TContractState);
+    
+    /// Cast a vote with nullifier and hidden vote (Active phase only)
+    fn cast_vote(ref self: TContractState, nullifier: felt252, hidden_vote: felt252);
 }
 
 /// Voting System Smart Contract
@@ -36,6 +42,8 @@ mod VotingSystem {
     struct Storage {
         admin: ContractAddress,
         election_state: ElectionState,
+        merkle_root: felt252,
+        used_nullifiers: LegacyMap<felt252, bool>,
     }
 
     #[event]
@@ -43,6 +51,7 @@ mod VotingSystem {
     enum Event {
         ElectionStarted: ElectionStarted,
         ElectionEnded: ElectionEnded,
+        VoteCasted: VoteCasted,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -50,6 +59,12 @@ mod VotingSystem {
 
     #[derive(Drop, starknet::Event)]
     struct ElectionEnded {}
+
+    #[derive(Drop, starknet::Event)]
+    struct VoteCasted {
+        nullifier: felt252,
+        hidden_vote: felt252,
+    }
 
     #[constructor]
     fn constructor(ref self: ContractState, admin: ContractAddress) {
@@ -65,6 +80,14 @@ mod VotingSystem {
 
         fn get_admin(self: @ContractState) -> ContractAddress {
             self.admin.read()
+        }
+
+        fn set_merkle_root(ref self: ContractState, root: felt252) {
+            self._assert_only_admin();
+            let current_state = self.election_state.read();
+            assert(current_state == ElectionState::Setup(()), 'Merkle root can only be set in Setup phase');
+            
+            self.merkle_root.write(root);
         }
 
         fn start_election(ref self: ContractState) {
@@ -83,6 +106,17 @@ mod VotingSystem {
             
             self.election_state.write(ElectionState::Ended(()));
             self.emit(Event::ElectionEnded(ElectionEnded {}));
+        }
+
+        fn cast_vote(ref self: ContractState, nullifier: felt252, hidden_vote: felt252) {
+            let current_state = self.election_state.read();
+            assert(current_state == ElectionState::Active(()), 'Election is not active');
+            
+            let already_voted = self.used_nullifiers.read(nullifier);
+            assert(!already_voted, 'Nullifier already used');
+            
+            self.used_nullifiers.write(nullifier, true);
+            self.emit(Event::VoteCasted(VoteCasted { nullifier, hidden_vote }));
         }
     }
 
