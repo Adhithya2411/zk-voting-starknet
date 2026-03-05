@@ -1,0 +1,25 @@
+# Build artifacts
+target/
+build/
+dist/
+
+# Dependencies
+node_modules/
+*.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cairo/Scarb specific
+.scarb/
+scarb-v2.16.0-x86_64-unknown-linux-gnu/
+starknet-foundry-v0.57.0-x86_64-unknown-linux-gnu/
+.snfoundry_cache/

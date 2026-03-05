@@ -1,10 +1,9 @@
-mod voting;
-
 use starknet::ContractAddress;
 
 /// Election State Machine
-#[derive(Copy, Drop, PartialEq, Serde)]
+#[derive(Copy, Drop, PartialEq, Serde, starknet::Store)]
 enum ElectionState {
+    #[default]
     Setup: (),
     Active: (),
     Ended: (),
@@ -37,14 +36,16 @@ trait IVotingSystem<TContractState> {
 mod VotingSystem {
     use super::{ElectionState, IVotingSystem, ContractAddress};
     use starknet::get_caller_address;
-    use core::poseidon::poseidon_hash_two;
+    use core::poseidon::PoseidonTrait;
+    use core::hash::HashStateTrait;
+    use starknet::storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry};
 
     #[storage]
     struct Storage {
         admin: ContractAddress,
         election_state: ElectionState,
         merkle_root: felt252,
-        used_nullifiers: LegacyMap<felt252, bool>,
+        used_nullifiers: Map<felt252, bool>,
     }
 
     #[event]
@@ -86,7 +87,7 @@ mod VotingSystem {
         fn set_merkle_root(ref self: ContractState, root: felt252) {
             self._assert_only_admin();
             let current_state = self.election_state.read();
-            assert(current_state == ElectionState::Setup(()), 'Merkle root can only be set in Setup phase');
+            assert(current_state == ElectionState::Setup(()), 'Merkle root Setup only');
             
             self.merkle_root.write(root);
         }
@@ -116,10 +117,10 @@ mod VotingSystem {
             let is_valid_proof = self._verify_merkle_proof(leaf, proof);
             assert(is_valid_proof, 'Invalid Merkle Proof');
             
-            let already_voted = self.used_nullifiers.read(nullifier);
+            let already_voted = self.used_nullifiers.entry(nullifier).read();
             assert(!already_voted, 'Nullifier already used');
             
-            self.used_nullifiers.write(nullifier, true);
+            self.used_nullifiers.entry(nullifier).write(true);
             self.emit(Event::VoteCasted(VoteCasted { nullifier, hidden_vote }));
         }
     }
@@ -142,13 +143,16 @@ mod VotingSystem {
                     break;
                 }
                 
-                let proof_element = proof[i];
+                let proof_element = *proof.at(i);
+                
+                let current_hash_u256: u256 = current_hash.into();
+                let proof_element_u256: u256 = proof_element.into();
                 
                 // Ensure consistent ordering: smaller value first
-                if current_hash <= proof_element {
-                    current_hash = poseidon_hash_two(current_hash, proof_element);
+                if current_hash_u256 <= proof_element_u256 {
+                    current_hash = PoseidonTrait::new().update(current_hash).update(proof_element).finalize();
                 } else {
-                    current_hash = poseidon_hash_two(proof_element, current_hash);
+                    current_hash = PoseidonTrait::new().update(proof_element).update(current_hash).finalize();
                 };
                 
                 i += 1;
