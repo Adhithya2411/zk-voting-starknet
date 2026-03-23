@@ -1,0 +1,5 @@
+.snfoundry_cache/
+target/
+scarb-*/
+starknet-foundry-*/
+Scarb.lock
