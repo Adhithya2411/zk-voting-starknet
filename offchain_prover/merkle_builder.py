@@ -78,22 +78,34 @@ class NullifierGenerator:
         """Hashes the secret voter ID with the election ID using Poseidon."""
         return poseidon_hash(voter_id, election_id)
 
+class CalldataFormatter:
+    """
+    Serializes cryptographic outputs into Cairo-compatible transaction calldata.
+    """
+    @staticmethod
+    def format_vote_payload(nullifier: int, proof: List[int]) -> List[int]:
+        """
+        Formats the payload: [nullifier, proof_length, proof_item_1, proof_item_2, ...]
+        """
+        calldata = [nullifier, len(proof)]
+        calldata.extend(proof)
+        return calldata
 if __name__ == "__main__":
-    # Initialize mock felt252 wallet addresses for terminal verification
+# Initialize mock felt252 wallet addresses for terminal verification
     mock_voter_wallets = [
         int("0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7", 16),
         int("0x03d22ce470c14b19642d51fb5dfd553b53cb1912f32777b7cb27a659ccab2136", 16),
         int("0x01a34382103f56ce43764b8cb6e0817c76b97da05ea7e3f89073c66f57007e60", 16)
     ]
-    
+
     # 1. Test Merkle Tree Generation
     tree = PoseidonMerkleTree(mock_voter_wallets)
     logging.info(f"Merkle Root: {hex(tree.get_root())}")
-    
+
     # 2. Test ZK Proof Generation
     target_voter = mock_voter_wallets[1]
     proof = tree.get_proof(target_voter)
-    
+
     logging.info("ZK Proof Path for Voter 2:")
     for idx, p in enumerate(proof):
         logging.info(f"  Level {idx}: {hex(p)}")
@@ -103,3 +115,8 @@ if __name__ == "__main__":
     ELECTION_ID = 1
     nullifier = NullifierGenerator.generate_nullifier(target_voter, ELECTION_ID)
     logging.info(f"Nullifier: {hex(nullifier)}")
+
+    # 4. Test Cairo Calldata Serialization
+    logging.info("\n--- Final Cairo Transaction Payload ---")
+    payload = CalldataFormatter.format_vote_payload(nullifier, proof)
+    logging.info(f"Serialized Array: {[hex(x) for x in payload]}")
