@@ -68,6 +68,16 @@ class PoseidonMerkleTree:
             
         return proof
 
+class NullifierGenerator:
+    """
+    Cryptographic security layer to prevent double-spending/double-voting.
+    Generates a public footprint of a vote without revealing the voter's identity.
+    """
+    @staticmethod
+    def generate_nullifier(voter_id: int, election_id: int) -> int:
+        """Hashes the secret voter ID with the election ID using Poseidon."""
+        return poseidon_hash(voter_id, election_id)
+
 if __name__ == "__main__":
     # Initialize mock felt252 wallet addresses for terminal verification
     mock_voter_wallets = [
@@ -76,12 +86,20 @@ if __name__ == "__main__":
         int("0x01a34382103f56ce43764b8cb6e0817c76b97da05ea7e3f89073c66f57007e60", 16)
     ]
     
+    # 1. Test Merkle Tree Generation
     tree = PoseidonMerkleTree(mock_voter_wallets)
     logging.info(f"Merkle Root: {hex(tree.get_root())}")
     
+    # 2. Test ZK Proof Generation
     target_voter = mock_voter_wallets[1]
     proof = tree.get_proof(target_voter)
     
     logging.info("ZK Proof Path for Voter 2:")
     for idx, p in enumerate(proof):
         logging.info(f"  Level {idx}: {hex(p)}")
+        
+    # 3. Test Nullifier Generation
+    logging.info("\n--- Generating Cryptographic Nullifier ---")
+    ELECTION_ID = 1
+    nullifier = NullifierGenerator.generate_nullifier(target_voter, ELECTION_ID)
+    logging.info(f"Nullifier: {hex(nullifier)}")
