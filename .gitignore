@@ -31,3 +31,5 @@ scarb-*/
 starknet-foundry-*/
 Scarb.lock
 
+# Python Virtual Environment
+venv/
