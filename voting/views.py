@@ -1,9 +1,16 @@
 import sys
 import os
 from django.http import JsonResponse
+from django.shortcuts import render
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from offchain_prover.merkle_builder import PoseidonMerkleTree, NullifierGenerator, CalldataFormatter
+
+def index(request):
+    """Renders the main frontend voting interface."""
+    return render(request, 'voting/index.html')
+
 
 def generate_proof(request):
     try:

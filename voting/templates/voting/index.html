@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starknet ZK Voting</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background-color: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); width: 100%; max-width: 600px; }
+        h1 { margin-top: 0; color: #38bdf8; font-size: 1.5rem; text-align: center; }
+        button { width: 100%; background-color: #0ea5e9; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; margin-top: 1rem; }
+        button:hover { background-color: #0284c7; }
+        button:disabled { background-color: #475569; cursor: not-allowed; }
+        .terminal { background-color: #000; color: #10b981; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-top: 1.5rem; white-space: pre-wrap; word-wrap: break-word; min-height: 150px; overflow-y: auto; max-height: 300px;}
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🗳️ Secure ZK Voting Portal</h1>
+        <p style="text-align: center; color: #94a3b8; font-size: 0.9rem;">Web3 Wallet Integration (Pending)</p>
+        
+        <button id="voteBtn" onclick="castVote()">Generate ZK Proof & Cast Vote</button>
+
+        <div id="outputContainer" class="hidden">
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem; color: #e2e8f0;">Transaction Payload Generated:</h3>
+            <div id="terminalOutput" class="terminal">Awaiting cryptographic engine...</div>
+        </div>
+    </div>
+
+    <script>
+        async function castVote() {
+            const btn = document.getElementById('voteBtn');
+            const outputContainer = document.getElementById('outputContainer');
+            const terminal = document.getElementById('terminalOutput');
+
+            // 1. Update UI state
+            btn.disabled = true;
+            btn.innerText = "Computing Zero-Knowledge Proof...";
+            outputContainer.classList.remove('hidden');
+            terminal.innerText = "Initializing Merkle Tree...\nGenerating Sibling Path...\nComputing Nullifier...";
+
+            try {
+                // 2. Call your Django API
+                const response = await fetch('/api/voting/generate-proof/');
+                const data = await response.json();
+
+                if (data.status === "success") {
+                    // 3. Format and display the success payload
+                    terminal.style.color = "#10b981"; // Green
+                    terminal.innerText = `[SUCCESS] Payload Ready for Starknet\n\n` +
+                                         `Voter Wallet: ${data.wallet}\n` +
+                                         `Merkle Root:  ${data.merkle_root}\n` +
+                                         `Nullifier:    ${data.nullifier}\n\n` +
+                                         `Cairo Calldata Array:\n` + 
+                                         JSON.stringify(data.cairo_calldata, null, 2);
+                    btn.innerText = "Vote Payload Generated!";
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                // 4. Handle any Python errors
+                terminal.style.color = "#ef4444"; // Red
+                terminal.innerText = `[CRITICAL ERROR] Engine Failure:\n${error.message}`;
+                btn.innerText = "Generation Failed";
+            }
+        }
+    </script>
+</body>
+</html>
