@@ -6,40 +6,64 @@
     <title>Starknet ZK Voting</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background-color: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); width: 100%; max-width: 600px; }
-        h1 { margin-top: 0; color: #38bdf8; font-size: 1.5rem; text-align: center; }
+        .card { background-color: #1e293b; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); width: 100%; max-width: 500px; }
+        h1 { margin-top: 0; color: #38bdf8; font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem; }
         
-        .wallet-status { text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem; color: #94a3b8; }
+        .wallet-status { text-align: center; margin-bottom: 2rem; font-size: 0.9rem; color: #94a3b8; background: #0f172a; padding: 8px; border-radius: 6px; }
         .status-dot { height: 10px; width: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .status-dot.connected { background-color: #10b981; }
 
-        .btn-connect { background-color: #f59e0b; color: #fff; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 1rem; transition: 0.2s; }
-        .btn-connect:hover { background-color: #d97706; }
-        .btn-connect:disabled { background-color: #475569; cursor: not-allowed; color: #94a3b8; }
+        /* Candidate Selection Styles */
+        .candidate-box { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
+        .candidate-option { background-color: #334155; padding: 12px 15px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
+        .candidate-option:hover { background-color: #475569; }
+        .candidate-option input[type="radio"] { margin-right: 15px; transform: scale(1.2); accent-color: #38bdf8; cursor: pointer; }
+        .candidate-name { font-weight: bold; font-size: 1.1rem; }
+        .candidate-desc { font-size: 0.8rem; color: #94a3b8; margin-left: auto; }
 
-        .btn-vote { width: 100%; background-color: #0ea5e9; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-connect { background-color: #f59e0b; color: #fff; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 1rem; transition: 0.2s; font-size: 1rem; }
+        .btn-connect:hover { background-color: #d97706; }
+
+        .btn-vote { width: 100%; background-color: #0ea5e9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-vote:hover { background-color: #0284c7; }
         .btn-vote:disabled { background-color: #334155; cursor: not-allowed; color: #64748b; }
         
-        .terminal { background-color: #000; color: #10b981; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-top: 1.5rem; white-space: pre-wrap; word-wrap: break-word; min-height: 150px; overflow-y: auto; max-height: 300px;}
+        .terminal { background-color: #000; color: #10b981; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-top: 1.5rem; white-space: pre-wrap; word-wrap: break-word; min-height: 100px; max-height: 250px; overflow-y: auto;}
         .hidden { display: none; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1>🗳️ Secure ZK Voting Portal</h1>
+        <h1>🗳️ Blockchain Ballot</h1>
         
         <div class="wallet-status">
             <span id="connectionDot" class="status-dot"></span>
             <span id="walletAddressText">Wallet Disconnected</span>
         </div>
-        
-        <button id="connectBtn" class="btn-connect" onclick="connectWallet()">Connect MetaMask</button>
-        <button id="voteBtn" class="btn-vote" onclick="castVote()" disabled>Generate ZK Proof & Cast Vote</button>
+
+        <button id="connectBtn" class="btn-connect" onclick="connectWallet()">1. Connect MetaMask</button>
+
+        <div id="ballotSection" class="hidden">
+            <h3 style="margin-bottom: 10px; font-size: 1rem; color: #e2e8f0;">Select your candidate:</h3>
+            <div class="candidate-box">
+                <label class="candidate-option">
+                    <input type="radio" name="candidate" value="1">
+                    <span class="candidate-name">Alice Smith</span>
+                    <span class="candidate-desc">Proposal A</span>
+                </label>
+                <label class="candidate-option">
+                    <input type="radio" name="candidate" value="2">
+                    <span class="candidate-name">Bob Jones</span>
+                    <span class="candidate-desc">Proposal B</span>
+                </label>
+            </div>
+            
+            <button id="voteBtn" class="btn-vote" onclick="prepareTransaction()">2. Sign & Cast Vote</button>
+        </div>
 
         <div id="outputContainer" class="hidden">
-            <h3 style="font-size: 1rem; margin-bottom: 0.5rem; color: #e2e8f0;">Transaction Payload Generated:</h3>
+            <h3 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: #94a3b8; margin-top: 1rem;">Transaction Status:</h3>
             <div id="terminalOutput" class="terminal"></div>
         </div>
     </div>
@@ -49,25 +73,22 @@
 
         async function connectWallet() {
             const connectBtn = document.getElementById('connectBtn');
-            const voteBtn = document.getElementById('voteBtn');
+            const ballotSection = document.getElementById('ballotSection');
             const addressText = document.getElementById('walletAddressText');
             const dot = document.getElementById('connectionDot');
 
-            // Check if MetaMask is injected into the browser window
             if (typeof window.ethereum !== 'undefined') {
                 try {
                     connectBtn.innerText = "Requesting Connection...";
                     
-                    // Trigger the MetaMask pop-up
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     globalWalletAddress = accounts[0];
 
-                    // Update UI state on successful connection
                     addressText.innerText = `Connected: ${globalWalletAddress.substring(0, 6)}...${globalWalletAddress.substring(38)}`;
                     dot.classList.add('connected');
                     
                     connectBtn.style.display = 'none';
-                    voteBtn.disabled = false;
+                    ballotSection.classList.remove('hidden');
 
                 } catch (error) {
                     console.error("Connection error:", error);
@@ -78,38 +99,46 @@
             }
         }
 
-        async function castVote() {
-            if (!globalWalletAddress) return;
+        async function prepareTransaction() {
+            // 1. Check if they selected a candidate
+            const selectedCandidate = document.querySelector('input[name="candidate"]:checked');
+            if (!selectedCandidate) {
+                alert("Please select a candidate before voting.");
+                return;
+            }
 
+            const candidateId = selectedCandidate.value;
             const btn = document.getElementById('voteBtn');
             const outputContainer = document.getElementById('outputContainer');
             const terminal = document.getElementById('terminalOutput');
 
             btn.disabled = true;
-            btn.innerText = "Computing Zero-Knowledge Proof...";
+            btn.innerText = "Generating ZK Proof...";
             outputContainer.classList.remove('hidden');
-            terminal.innerText = "Initializing Merkle Tree...\nGenerating Sibling Path...\nComputing Nullifier...";
+            terminal.style.color = "#38bdf8"; // Blue for loading
+            terminal.innerText = "Requesting cryptographic payload from Django Prover...\n...";
 
             try {
+                // 2. Fetch the ZK Proof from our backend
                 const response = await fetch(`/api/voting/generate-proof/?wallet=${globalWalletAddress}`);
                 const data = await response.json();
 
                 if (data.status === "success") {
-                    terminal.style.color = "#10b981";
-                    terminal.innerText = `[SUCCESS] Payload Ready for Starknet\n\n` +
-                                         `Voter Wallet: ${data.wallet}\n` +
-                                         `Merkle Root:  ${data.merkle_root}\n` +
-                                         `Nullifier:    ${data.nullifier}\n\n` +
-                                         `Cairo Calldata Array:\n` + 
-                                         JSON.stringify(data.cairo_calldata, null, 2);
-                    btn.innerText = "Vote Payload Generated!";
+                    terminal.style.color = "#f59e0b"; // Yellow for pending transaction
+                    terminal.innerText = `[PAYLOAD GENERATED]\nTarget Candidate ID: ${candidateId}\nNullifier: ${data.nullifier}\n\nWaiting for Starknet deployment to send transaction...`;
+                    btn.innerText = "Proof Ready (Awaiting Phase 2)";
+                    
+                    // TODO: In Phase 3, this is where we will invoke starknet.js 
+                    // and ask MetaMask to sign the actual transaction!
+
                 } else {
                     throw new Error(data.message);
                 }
             } catch (error) {
                 terminal.style.color = "#ef4444";
-                terminal.innerText = `[CRITICAL ERROR] Engine Failure:\n${error.message}`;
+                terminal.innerText = `[ERROR] ${error.message}`;
                 btn.innerText = "Generation Failed";
+                btn.disabled = false;
             }
         }
     </script>
