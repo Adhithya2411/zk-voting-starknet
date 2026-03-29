@@ -33,3 +33,12 @@ Scarb.lock
 
 # Python Virtual Environment
 venv/
+# Python Cache
+__pycache__/
+*.py[cod]
+
+# Secrets and Binaries
+.env
+account.json
+keystore.json
+starkli.exe

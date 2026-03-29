@@ -69,7 +69,9 @@
     </div>
 
     <script>
+        const CONTRACT_ADDRESS = "0x072daa9180c5fb53702221bcb7c76066d5d229694c1b9096b808a82228154364";
         let globalWalletAddress = null;
+        let starknetObj = null;
 
         async function connectWallet() {
             const connectBtn = document.getElementById('connectBtn');
@@ -77,14 +79,15 @@
             const addressText = document.getElementById('walletAddressText');
             const dot = document.getElementById('connectionDot');
 
-            if (typeof window.ethereum !== 'undefined') {
+            if (window.starknet) {
                 try {
                     connectBtn.innerText = "Requesting Connection...";
                     
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    globalWalletAddress = accounts[0];
+                    starknetObj = window.starknet;
+                    await starknetObj.enable();
+                    globalWalletAddress = starknetObj.selectedAddress;
 
-                    addressText.innerText = `Connected: ${globalWalletAddress.substring(0, 6)}...${globalWalletAddress.substring(38)}`;
+                    addressText.innerText = `Connected: ${globalWalletAddress.substring(0, 6)}...${globalWalletAddress.substring(60)}`;
                     dot.classList.add('connected');
                     
                     connectBtn.style.display = 'none';
@@ -95,12 +98,11 @@
                     connectBtn.innerText = "Connection Rejected - Try Again";
                 }
             } else {
-                alert("MetaMask is not installed. Please install the browser extension to continue.");
+                alert("Argent X is not installed. Please install the Argent X Starknet wallet.");
             }
         }
 
         async function prepareTransaction() {
-            // 1. Check if they selected a candidate
             const selectedCandidate = document.querySelector('input[name="candidate"]:checked');
             if (!selectedCandidate) {
                 alert("Please select a candidate before voting.");
@@ -115,21 +117,32 @@
             btn.disabled = true;
             btn.innerText = "Generating ZK Proof...";
             outputContainer.classList.remove('hidden');
-            terminal.style.color = "#38bdf8"; // Blue for loading
+            terminal.style.color = "#38bdf8"; 
             terminal.innerText = "Requesting cryptographic payload from Django Prover...\n...";
 
             try {
-                // 2. Fetch the ZK Proof from our backend
                 const response = await fetch(`/api/voting/generate-proof/?wallet=${globalWalletAddress}`);
                 const data = await response.json();
 
                 if (data.status === "success") {
-                    terminal.style.color = "#f59e0b"; // Yellow for pending transaction
-                    terminal.innerText = `[PAYLOAD GENERATED]\nTarget Candidate ID: ${candidateId}\nNullifier: ${data.nullifier}\n\nWaiting for Starknet deployment to send transaction...`;
-                    btn.innerText = "Proof Ready (Awaiting Phase 2)";
-                    
-                    // TODO: In Phase 3, this is where we will invoke starknet.js 
-                    // and ask MetaMask to sign the actual transaction!
+                    terminal.style.color = "#f59e0b"; 
+                    terminal.innerText = `[PAYLOAD GENERATED]\nTarget Candidate ID: ${candidateId}\nNullifier: ${data.nullifier}\n\nPrompting Argent X to sign transaction...`;
+                    btn.innerText = "Sign in Wallet...";
+
+                    const tx = await starknetObj.account.execute({
+                        contractAddress: CONTRACT_ADDRESS,
+                        entrypoint: "cast_vote",
+                        calldata: [
+                            data.leaf,
+                            data.proof,
+                            data.nullifier,
+                            data.hidden_vote || candidateId
+                        ]
+                    });
+
+                    terminal.style.color = "#10b981"; 
+                    terminal.innerText = `[SUCCESS] Transaction Sent!\nTx Hash: ${tx.transaction_hash}\nVote is now recorded on Starknet Sepolia!`;
+                    btn.innerText = "Vote Cast Successfully";
 
                 } else {
                     throw new Error(data.message);
@@ -137,7 +150,7 @@
             } catch (error) {
                 terminal.style.color = "#ef4444";
                 terminal.innerText = `[ERROR] ${error.message}`;
-                btn.innerText = "Generation Failed";
+                btn.innerText = "Transaction Failed";
                 btn.disabled = false;
             }
         }

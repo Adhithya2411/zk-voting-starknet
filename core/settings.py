@@ -117,3 +117,5 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+VOTING_CONTRACT_ADDRESS = '0x072daa9180c5fb53702221bcb7c76066d5d229694c1b9096b808a82228154364'
