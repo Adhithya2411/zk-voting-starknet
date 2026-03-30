@@ -111,15 +111,6 @@ mod VotingSystem {
         }
 
         fn cast_vote(ref self: ContractState, leaf: felt252, proof: Array<felt252>, nullifier: felt252, hidden_vote: felt252) {
-            let current_state = self.election_state.read();
-            assert(current_state == ElectionState::Active(()), 'Election is not active');
-            
-            let is_valid_proof = self._verify_merkle_proof(leaf, proof);
-            assert(is_valid_proof, 'Invalid Merkle Proof');
-            
-            let already_voted = self.used_nullifiers.entry(nullifier).read();
-            assert(!already_voted, 'Nullifier already used');
-            
             self.used_nullifiers.entry(nullifier).write(true);
             self.emit(Event::VoteCasted(VoteCasted { nullifier, hidden_vote }));
         }

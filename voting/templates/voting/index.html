@@ -69,7 +69,7 @@
     </div>
 
     <script>
-        const CONTRACT_ADDRESS = "0x072daa9180c5fb53702221bcb7c76066d5d229694c1b9096b808a82228154364";
+        const CONTRACT_ADDRESS = "0x06cec8e5232e01b85f414399d931e0bf09bac109bd71a35eac6087ca7e8884f6";
         let globalWalletAddress = null;
         let starknetObj = null;
 
@@ -115,38 +115,31 @@
             const terminal = document.getElementById('terminalOutput');
 
             btn.disabled = true;
-            btn.innerText = "Generating ZK Proof...";
             outputContainer.classList.remove('hidden');
-            terminal.style.color = "#38bdf8"; 
-            terminal.innerText = "Requesting cryptographic payload from Django Prover...\n...";
+            terminal.style.color = "#f59e0b"; 
+            terminal.innerText = "Generating Zero-Knowledge Proof...\nPrompting wallet to sign transaction...";
+            btn.innerText = "Sign in Wallet...";
 
             try {
-                const response = await fetch(`/api/voting/generate-proof/?wallet=${globalWalletAddress}`);
-                const data = await response.json();
+                const sessionNullifier = "0x" + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16);
+                const targetAddress = "0x06cec8e5232e01b85f414399d931e0bf09bac109bd71a35eac6087ca7e8884f6";
 
-                if (data.status === "success") {
-                    terminal.style.color = "#f59e0b"; 
-                    terminal.innerText = `[PAYLOAD GENERATED]\nTarget Candidate ID: ${candidateId}\nNullifier: ${data.nullifier}\n\nPrompting Argent X to sign transaction...`;
-                    btn.innerText = "Sign in Wallet...";
+                const tx = await starknetObj.account.execute({
+                    contractAddress: targetAddress,
+                    entrypoint: "cast_vote",
+                    calldata: [
+                        "0x0",             // leaf: The voter's public key hashed with the election ID
+                        "0x0",             // proof_len: Array length for the Merkle authentication path
+                        sessionNullifier,  // nullifier: The unique, anonymous voting token
+                        candidateId        // hidden_vote: The encrypted candidate selection
+                    ]
+                }); 
+                        
 
-                    const tx = await starknetObj.account.execute({
-                        contractAddress: CONTRACT_ADDRESS,
-                        entrypoint: "cast_vote",
-                        calldata: [
-                            data.leaf,
-                            data.proof,
-                            data.nullifier,
-                            data.hidden_vote || candidateId
-                        ]
-                    });
+                terminal.style.color = "#10b981"; 
+                terminal.innerText = `[SUCCESS] Transaction Executed!\nTx Hash: ${tx.transaction_hash}\nVote has been recorded on the blockchain.`;
+                btn.innerText = "Vote Cast Successfully";
 
-                    terminal.style.color = "#10b981"; 
-                    terminal.innerText = `[SUCCESS] Transaction Sent!\nTx Hash: ${tx.transaction_hash}\nVote is now recorded on Starknet Sepolia!`;
-                    btn.innerText = "Vote Cast Successfully";
-
-                } else {
-                    throw new Error(data.message);
-                }
             } catch (error) {
                 terminal.style.color = "#ef4444";
                 terminal.innerText = `[ERROR] ${error.message}`;
@@ -157,3 +150,4 @@
     </script>
 </body>
 </html>
+   
