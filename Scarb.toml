@@ -1,0 +1,15 @@
+[package]
+name = "voting"
+version = "0.1.0"
+edition = "2023_10"
+
+[dependencies]
+starknet = "2.13.1"
+
+[dev-dependencies]
+snforge_std = "0.57.0"
+
+[[target.starknet-contract]]
+
+[tool.snforge]
+# Configuration for snforge testing
