@@ -117,21 +117,32 @@
             btn.disabled = true;
             outputContainer.classList.remove('hidden');
             terminal.style.color = "#f59e0b"; 
-            terminal.innerText = "Generating Zero-Knowledge Proof...\nPrompting wallet to sign transaction...";
-            btn.innerText = "Sign in Wallet...";
+            terminal.innerText = "Requesting Merkle proof from off-chain prover...";
+            btn.innerText = "Generating Proof...";
 
             try {
-                const sessionNullifier = "0x" + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16);
-                const targetAddress = "0x06cec8e5232e01b85f414399d931e0bf09bac109bd71a35eac6087ca7e8884f6";
+                const response = await fetch(`/api/voting/generate-proof/?wallet=${globalWalletAddress}`);
+                const data = await response.json();
+                
+                if (data.status !== "success") {
+                    throw new Error(data.message || "Failed to generate proof.");
+                }
+
+                terminal.innerText += `\nProof Generated. Root: ${data.merkle_root.substring(0, 10)}...`;
+                terminal.innerText += `\nPrompting wallet to sign transaction...`;
+                btn.innerText = "Sign in Wallet...";
+
+                const targetAddress = CONTRACT_ADDRESS;
 
                 const tx = await starknetObj.account.execute({
                     contractAddress: targetAddress,
                     entrypoint: "cast_vote",
                     calldata: [
-                        "0x0",             // leaf: The voter's public key hashed with the election ID
-                        "0x0",             // proof_len: Array length for the Merkle authentication path
-                        sessionNullifier,  // nullifier: The unique, anonymous voting token
-                        candidateId        // hidden_vote: The encrypted candidate selection
+                        data.leaf,
+                        data.proof.length.toString(),
+                        ...data.proof,
+                        data.nullifier,
+                        candidateId
                     ]
                 }); 
                         

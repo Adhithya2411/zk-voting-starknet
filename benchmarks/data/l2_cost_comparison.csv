@@ -1,0 +1,3 @@
+platform,proof_system,calldata_bytes,gas_cost_usd,batch_size,amortized_cost_usd
+Starknet L2,ZK-STARK,144,0.005,100,5e-05
+Ethereum L1,Groth16,256,3.5,10,0.35

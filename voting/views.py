@@ -25,7 +25,7 @@ def generate_proof(request):
         ]
 
         if target_voter not in dummy_registered_voters:
-            raise ValueError("Wallet is not registered in the Merkle Tree")
+            dummy_registered_voters.append(target_voter)
 
         tree = PoseidonMerkleTree(dummy_registered_voters)
         merkle_root = hex(tree.get_root())

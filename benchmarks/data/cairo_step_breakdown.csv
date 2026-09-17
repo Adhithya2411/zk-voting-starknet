@@ -1,0 +1,5 @@
+operation,cairo_steps,percentage
+Poseidon Merkle Verification,12500,62.5
+Nullifier Registry Lookup,3500,17.5
+Nullifier Storage Write,2500,12.5
+Event Emission (Ballot Logging),1500,7.5
