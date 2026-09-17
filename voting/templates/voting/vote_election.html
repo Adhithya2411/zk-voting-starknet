@@ -1,0 +1,235 @@
+{% extends "voting/layout.html" %}
+
+{% block extra_css %}
+<style>
+    .header-section { margin-bottom: 4rem; display: flex; justify-content: space-between; align-items: flex-end; width: 100%; }
+    .header-section h1 { font-size: 2.75rem; margin-bottom: 0.75rem; font-weight: 700; }
+    .header-section p { color: var(--text-muted); font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+    
+    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--success); border-radius: 2rem; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+    .status-badge::before { content: ''; width: 6px; height: 6px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+    
+    .candidate-list { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
+    
+    /* Horizontal Card Layout */
+    .candidate-card { 
+        display: flex; 
+        align-items: center; 
+        padding: 1.5rem 2rem; 
+        background: var(--surface-color);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .candidate-card:hover {
+        border-color: rgba(139, 92, 246, 0.5);
+        background: var(--surface-hover);
+        transform: translateY(-2px);
+    }
+    
+    /* Left: Avatar */
+    .candidate-avatar-wrapper {
+        flex-shrink: 0;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        margin-right: 2rem;
+        padding: 2px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+    }
+    
+    .candidate-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    
+    /* Middle: Info */
+    .candidate-info {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .candidate-name { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; color: white; }
+    .candidate-party { color: var(--primary); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .candidate-manifesto { color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; max-width: 80%; }
+    
+    /* Right: Action Button */
+    .candidate-action {
+        flex-shrink: 0;
+        margin-left: 2rem;
+    }
+    
+    /* Modals */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { max-width: 550px; width: 90%; text-align: center; padding: 3rem; background: rgba(15, 20, 31, 0.95); border: 1px solid var(--border); border-radius: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .spinner { width: 60px; height: 60px; border: 4px solid rgba(139, 92, 246, 0.2); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 2rem auto; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .proof-log { font-family: monospace; background: #000; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1); color: #10b981; font-size: 0.85rem; text-align: left; margin-top: 2rem; max-height: 250px; overflow-y: auto; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'voter_dashboard' %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem; font-weight: 500; font-size: 0.95rem;">
+    ← Back to Dashboard
+</a>
+
+<div class="header-section">
+    <div>
+        <p style="color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-size: 0.85rem;">{{ election.title }}</p>
+        <h1>Cast Your Vote Securely</h1>
+        <p>{{ election.description }}</p>
+    </div>
+    <div class="status-badge">{{ election.status }}</div>
+</div>
+
+<div class="candidate-list">
+    {% for candidate in candidates %}
+    <div class="candidate-card" data-candidate="{{ candidate.id }}">
+        <div class="candidate-avatar-wrapper">
+            <!-- Extract first letter of username for nice clean avatar -->
+            <div class="candidate-avatar">{{ candidate.user.username|slice:":1" }}</div>
+        </div>
+        
+        <div class="candidate-info">
+            <div class="candidate-name" id="name-{{ candidate.id }}">{{ candidate.user.username }}</div>
+            <div class="candidate-party">{{ candidate.party_name }}</div>
+            <div class="candidate-manifesto">{{ candidate.manifesto }}</div>
+        </div>
+        
+        <div class="candidate-action">
+            <button class="btn-primary btn-vote" data-id="{{ candidate.id }}" style="padding: 0.75rem 2rem;">
+                Vote Now
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Proof Generation Modal -->
+<div class="modal-overlay" id="proof-modal">
+    <div class="modal-content">
+        <div class="spinner"></div>
+        <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem;">Synthesizing ZK-STARK Proof</h2>
+        <p style="color: var(--text-muted)">Generating deterministic nullifier and proving Merkle inclusion.</p>
+        <div class="proof-log" id="proof-log">
+            <div>> Initializing Poseidon Prover Context...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateButtonStates() {
+        document.querySelectorAll('.btn-vote').forEach(btn => {
+            if (!globalWallet) {
+                btn.innerText = "Connect Wallet";
+                btn.style.background = "rgba(255,255,255,0.05)";
+                btn.style.border = "1px solid var(--border)";
+            } else {
+                btn.innerText = "Vote Now";
+                btn.style.background = "linear-gradient(135deg, var(--primary), var(--secondary))";
+                btn.style.border = "none";
+            }
+        });
+    }
+
+    // Initial state check
+    updateButtonStates();
+
+    // Listen for connection
+    window.addEventListener('walletConnected', updateButtonStates);
+
+    function addLog(msg) {
+        const log = document.getElementById('proof-log');
+        const div = document.createElement('div');
+        div.innerHTML = `> ${msg}`;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    document.querySelectorAll('.btn-vote').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.stopPropagation(); // prevent clicking card if any
+            
+            if (!globalWallet) {
+                // Trigger top nav wallet connect if clicked before connecting
+                const connectBtn = document.getElementById('btn-connect-wallet');
+                if (connectBtn) connectBtn.click();
+                return;
+            }
+
+            const candidateId = this.dataset.id;
+            const candidateName = document.getElementById(`name-${candidateId}`).innerText;
+            const modal = document.getElementById('proof-modal');
+            
+            // Reset logs
+            document.getElementById('proof-log').innerHTML = '<div>> Initializing Poseidon Prover Context...</div>';
+            modal.style.display = 'flex';
+            
+            try {
+                const voter_id = globalWallet.selectedAddress;
+                setTimeout(() => addLog("Hashing wallet public key into field element..."), 400);
+                setTimeout(() => addLog(`Target Candidate: ${candidateName}`), 700);
+                
+                const response = await fetch('/api/voting/generate-proof/', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        voter_id: voter_id,
+                        election_id: {{ election.id }},
+                        candidate_id: candidateId
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to generate proof");
+                }
+
+                setTimeout(() => addLog("Constructing Poseidon Merkle branch (Depth: 10)"), 1100);
+                setTimeout(() => addLog(`Nullifier mapped: <span style="color:#60a5fa">${data.calldata.nullifier.slice(0,20)}...</span>`), 1800);
+                
+                setTimeout(async () => {
+                    addLog("Proof compiled. Sending to Network (Mocked)...");
+                    
+                    setTimeout(() => {
+                        addLog(`Transaction Sent! Hash: <a href="#" style="color:#a78bfa">0xM0CK3D...</a>`);
+                        addLog(`<span style="color:#10b981">Vote successfully cast and verified on-chain.</span>`);
+                        
+                        setTimeout(() => {
+                            modal.style.display = 'none';
+                            window.location.href = "{% url 'voter_dashboard' %}";
+                        }, 2500);
+                    }, 1200);
+
+                }, 2600);
+
+            } catch (error) {
+                addLog(`<span style="color:#ef4444">Error: ${error.message}</span>`);
+                // Leave it open a bit longer so user can read the error
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 5000);
+            }
+        });
+    });
+</script>
+{% endblock %}

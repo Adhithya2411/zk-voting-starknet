@@ -1,0 +1,30 @@
+{% extends "voting/layout.html" %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <div>
+        <p style="color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-size: 0.85rem;">Voter Portal</p>
+        <h1 style="font-size: 2.75rem; margin-bottom: 0.5rem; font-weight: 700;">Active Elections</h1>
+        <p style="color: var(--text-muted); font-size: 1.1rem;">Select an active election below to view candidates and cast your vote.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+    {% for election in elections %}
+    <div class="glass-card" style="padding: 2rem;">
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">{{ election.title }}</h2>
+        <div style="display: inline-block; padding: 0.25rem 0.75rem; background: rgba(16, 185, 129, 0.1); color: var(--success); border-radius: 1rem; font-size: 0.75rem; font-weight: 600; margin-bottom: 1.5rem;">
+            ● {{ election.status }}
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">{{ election.description|truncatewords:20 }}</p>
+        <div style="display: flex; justify-content: flex-end;">
+            <a href="{% url 'vote_election' election.id %}" class="btn-primary" style="text-decoration: none;">View & Vote →</a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 4rem; color: var(--text-muted);">
+        <h3>No active elections at this time.</h3>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

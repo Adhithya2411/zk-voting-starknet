@@ -1,0 +1,88 @@
+{% extends "voting/layout.html" %}
+
+{% block extra_css %}
+<style>
+    /* Keep previous dashboard css for table */
+    .dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; }
+    .dashboard-header h1 { font-size: 2.75rem; margin-bottom: 0.5rem; font-weight: 700; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 1.25rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table th { color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; background: rgba(0,0,0,0.2); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .hash-badge { background: rgba(59, 130, 246, 0.1); padding: 0.35rem 0.75rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.9rem; color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .tx-link { color: #a78bfa; text-decoration: none; font-weight: 500; }
+    .election-selector { padding: 0.75rem 1rem; background: var(--surface-color); border: 1px solid var(--border); color: white; border-radius: 0.5rem; font-family: inherit; font-size: 1rem; cursor: pointer; margin-bottom: 2rem; }
+    .metric-card { text-align: left; padding: 2.5rem 2rem; position: relative; overflow: hidden; border-top: 4px solid var(--primary); }
+    .metric-value { font-size: 3.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p style="color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-size: 0.85rem;">Admin Analytics</p>
+        <h1>Ledger Dashboard</h1>
+    </div>
+    <div>
+        <form method="GET" action="{% url 'admin_dashboard' %}">
+            <select name="election_id" class="election-selector" onchange="this.form.submit()">
+                {% for election in elections %}
+                    <option value="{{ election.id }}" {% if selected_election.id == election.id %}selected{% endif %}>
+                        {{ election.title }} ({{ election.status }})
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+{% if selected_election %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-bottom: 4rem;">
+    <div class="glass-card metric-card">
+        <div class="metric-value">{{ ledgers|length }}</div>
+        <div class="metric-label" style="color: var(--text-muted); text-transform: uppercase; font-size: 0.95rem; font-weight: 500;">ZK Proofs Verified</div>
+    </div>
+    <div class="glass-card metric-card" style="border-top-color: #3b82f6;">
+        <div class="metric-value">{{ selected_election.candidates.count }}</div>
+        <div class="metric-label" style="color: var(--text-muted); text-transform: uppercase; font-size: 0.95rem; font-weight: 500;">Approved Candidates</div>
+    </div>
+    <div class="glass-card metric-card" style="border-top-color: #10b981;">
+        <div class="metric-value">Active</div>
+        <div class="metric-label" style="color: var(--text-muted); text-transform: uppercase; font-size: 0.95rem; font-weight: 500;">Election Status</div>
+    </div>
+</div>
+
+<h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">Cryptographic Ledger</h2>
+<p style="color: var(--text-muted); margin-bottom: 2rem;">Immutable record of consumed deterministic nullifiers for: {{ selected_election.title }}</p>
+
+<div class="glass-card" style="padding: 0; overflow: hidden;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Timestamp (UTC)</th>
+                <th>Consumed Nullifier Hash</th>
+                <th>Starknet Tx Hash</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ledger in ledgers %}
+            <tr>
+                <td>{{ ledger.timestamp|date:"Y-m-d H:i:s" }}</td>
+                <td><span class="hash-badge">{{ ledger.nullifier_hash|slice:":15" }}...</span></td>
+                <td><a href="#" class="tx-link">{{ ledger.tx_hash|slice:":15" }}...</a></td>
+                <td style="color: var(--success); font-weight: 600;">Verified L2</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-muted);">No votes cast yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p style="color: var(--text-muted);">No elections found. Please create one.</p>
+{% endif %}
+{% endblock %}

@@ -1,164 +1,356 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starknet ZK Voting</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background-color: #1e293b; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); width: 100%; max-width: 500px; }
-        h1 { margin-top: 0; color: #38bdf8; font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem; }
-        
-        .wallet-status { text-align: center; margin-bottom: 2rem; font-size: 0.9rem; color: #94a3b8; background: #0f172a; padding: 8px; border-radius: 6px; }
-        .status-dot { height: 10px; width: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .status-dot.connected { background-color: #10b981; }
+{% extends "voting/layout.html" %}
 
-        /* Candidate Selection Styles */
-        .candidate-box { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
-        .candidate-option { background-color: #334155; padding: 12px 15px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
-        .candidate-option:hover { background-color: #475569; }
-        .candidate-option input[type="radio"] { margin-right: 15px; transform: scale(1.2); accent-color: #38bdf8; cursor: pointer; }
-        .candidate-name { font-weight: bold; font-size: 1.1rem; }
-        .candidate-desc { font-size: 0.8rem; color: #94a3b8; margin-left: auto; }
+{% block extra_css %}
+<style>
+    .header-section {
+        margin-bottom: 4rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        width: 100%;
+    }
 
-        .btn-connect { background-color: #f59e0b; color: #fff; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 1rem; transition: 0.2s; font-size: 1rem; }
-        .btn-connect:hover { background-color: #d97706; }
+    .header-section h1 {
+        font-size: 2.75rem;
+        margin-bottom: 0.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
 
-        .btn-vote { width: 100%; background-color: #0ea5e9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-vote:hover { background-color: #0284c7; }
-        .btn-vote:disabled { background-color: #334155; cursor: not-allowed; color: #64748b; }
-        
-        .terminal { background-color: #000; color: #10b981; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-top: 1.5rem; white-space: pre-wrap; word-wrap: break-word; min-height: 100px; max-height: 250px; overflow-y: auto;}
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
+    .header-section p {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        max-width: 600px;
+        line-height: 1.6;
+    }
 
-    <div class="card">
-        <h1>🗳️ Blockchain Ballot</h1>
-        
-        <div class="wallet-status">
-            <span id="connectionDot" class="status-dot"></span>
-            <span id="walletAddressText">Wallet Disconnected</span>
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        color: var(--success);
+        border-radius: 2rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .status-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        background: var(--success);
+        border-radius: 50%;
+        box-shadow: 0 0 8px var(--success);
+    }
+
+    .candidate-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2.5rem;
+        width: 100%;
+    }
+
+    .candidate-card {
+        cursor: pointer;
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-gradient-top {
+        height: 120px;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.4), rgba(59, 130, 246, 0.4));
+        position: relative;
+    }
+
+    .card-gradient-top.bob {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(59, 130, 246, 0.4));
+    }
+
+    .candidate-avatar {
+        width: 80px;
+        height: 80px;
+        background: #1e293b;
+        border: 4px solid var(--surface-color);
+        border-radius: 50%;
+        position: absolute;
+        bottom: -40px;
+        left: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .card-body {
+        padding: 3.5rem 2rem 2rem 2rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .candidate-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .candidate-party {
+        color: var(--primary);
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .candidate-card.selected {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px var(--primary), 0 10px 30px -10px rgba(124, 58, 237, 0.3);
+        transform: translateY(-5px);
+    }
+
+    .vote-action-bar {
+        position: fixed;
+        bottom: 0;
+        left: 280px;
+        right: 0;
+        background: rgba(11, 15, 25, 0.95);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid var(--border);
+        padding: 1.5rem 4rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transform: translateY(100%);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 40;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+    }
+
+    .vote-action-bar.visible {
+        transform: translateY(0);
+    }
+
+    /* Modal for ZK Proof Generation */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.85);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        max-width: 550px;
+        width: 90%;
+        text-align: center;
+        padding: 3rem;
+        background: rgba(15, 20, 31, 0.95);
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(124, 58, 237, 0.2);
+        border-left-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 2rem auto;
+    }
+
+    @keyframes spin {
+        100% { transform: rotate(360deg); }
+    }
+    
+    .proof-log {
+        font-family: 'Courier New', Courier, monospace;
+        background: #000;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #10b981;
+        font-size: 0.85rem;
+        text-align: left;
+        margin-top: 2rem;
+        max-height: 200px;
+        overflow-y: auto;
+        line-height: 1.5;
+    }
+    
+    .proof-log div {
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <div>
+        <p style="color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-size: 0.85rem;">Web3 Governance DAO</p>
+        <h1>Cast Your Vote Securely</h1>
+        <p>Select a candidate below. Your identity is mathematically shielded using Zero-Knowledge STARKs on the Starknet Layer-2 network.</p>
+    </div>
+    <div class="status-badge">Voting Active</div>
+</div>
+
+<div class="candidate-grid">
+    <div class="glass-card candidate-card" data-candidate="1">
+        <div class="card-gradient-top">
+            <div class="candidate-avatar">👩🏽‍💻</div>
         </div>
-
-        <button id="connectBtn" class="btn-connect" onclick="connectWallet()">1. Connect MetaMask</button>
-
-        <div id="ballotSection" class="hidden">
-            <h3 style="margin-bottom: 10px; font-size: 1rem; color: #e2e8f0;">Select your candidate:</h3>
-            <div class="candidate-box">
-                <label class="candidate-option">
-                    <input type="radio" name="candidate" value="1">
-                    <span class="candidate-name">Alice Smith</span>
-                    <span class="candidate-desc">Proposal A</span>
-                </label>
-                <label class="candidate-option">
-                    <input type="radio" name="candidate" value="2">
-                    <span class="candidate-name">Bob Jones</span>
-                    <span class="candidate-desc">Proposal B</span>
-                </label>
-            </div>
-            
-            <button id="voteBtn" class="btn-vote" onclick="prepareTransaction()">2. Sign & Cast Vote</button>
-        </div>
-
-        <div id="outputContainer" class="hidden">
-            <h3 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: #94a3b8; margin-top: 1rem;">Transaction Status:</h3>
-            <div id="terminalOutput" class="terminal"></div>
+        <div class="card-body">
+            <div class="candidate-name">Alice Nakamoto</div>
+            <div class="candidate-party">Decentralization Party</div>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Focuses on layer-2 scaling and privacy-preserving infrastructure for the public good. Prioritizes cryptographic research.</p>
         </div>
     </div>
 
-    <script>
-        const CONTRACT_ADDRESS = "0x06cec8e5232e01b85f414399d931e0bf09bac109bd71a35eac6087ca7e8884f6";
-        let globalWalletAddress = null;
-        let starknetObj = null;
+    <div class="glass-card candidate-card" data-candidate="2">
+        <div class="card-gradient-top bob">
+            <div class="candidate-avatar">👨🏻‍🔬</div>
+        </div>
+        <div class="card-body">
+            <div class="candidate-name">Bob Stark</div>
+            <div class="candidate-party">Rollup Coalition</div>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Advocates for massive execution scale using Cairo and validium data availability. Proponent of high-frequency on-chain trading.</p>
+        </div>
+    </div>
+</div>
 
-        async function connectWallet() {
-            const connectBtn = document.getElementById('connectBtn');
-            const ballotSection = document.getElementById('ballotSection');
-            const addressText = document.getElementById('walletAddressText');
-            const dot = document.getElementById('connectionDot');
+<div class="vote-action-bar" id="action-bar">
+    <div>
+        <h3 id="selected-candidate-text" style="margin: 0; font-size: 1.3rem; font-weight: 700;">Selected: None</h3>
+        <p style="margin: 0.25rem 0 0 0; color: var(--text-muted); font-size: 0.95rem;">Gas fees subsidized by DAO Treasury</p>
+    </div>
+    <button class="btn-primary" id="btn-cast-vote" disabled style="padding: 1rem 2.5rem; font-size: 1.1rem;">Sign & Cast ZK-Vote</button>
+</div>
 
-            if (window.starknet) {
-                try {
-                    connectBtn.innerText = "Requesting Connection...";
-                    
-                    starknetObj = window.starknet;
-                    await starknetObj.enable();
-                    globalWalletAddress = starknetObj.selectedAddress;
+<div class="modal-overlay" id="proof-modal">
+    <div class="glass-card modal-content">
+        <div class="spinner"></div>
+        <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem;">Synthesizing ZK-STARK Proof</h2>
+        <p style="color: var(--text-muted)">Generating deterministic nullifier and proving Merkle inclusion.</p>
+        <div class="proof-log" id="proof-log">
+            <div>> Initializing Poseidon Prover Context...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-                    addressText.innerText = `Connected: ${globalWalletAddress.substring(0, 6)}...${globalWalletAddress.substring(60)}`;
-                    dot.classList.add('connected');
-                    
-                    connectBtn.style.display = 'none';
-                    ballotSection.classList.remove('hidden');
+{% block extra_js %}
+<script>
+    const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000"; 
+    let selectedCandidate = null;
 
-                } catch (error) {
-                    console.error("Connection error:", error);
-                    connectBtn.innerText = "Connection Rejected - Try Again";
-                }
+    document.querySelectorAll('.candidate-card').forEach(card => {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedCandidate = this.dataset.candidate;
+            
+            const name = this.querySelector('.candidate-name').innerText;
+            document.getElementById('selected-candidate-text').innerText = `Selected: ${name}`;
+            
+            document.getElementById('action-bar').classList.add('visible');
+            
+            if (globalWallet) {
+                document.getElementById('btn-cast-vote').disabled = false;
             } else {
-                alert("Argent X is not installed. Please install the Argent X Starknet wallet.");
+                document.getElementById('selected-candidate-text').innerText += " (Connect Wallet First)";
             }
+        });
+    });
+
+    window.addEventListener('walletConnected', () => {
+        if (selectedCandidate) {
+            document.getElementById('btn-cast-vote').disabled = false;
+            const name = document.querySelector('.candidate-card.selected .candidate-name').innerText;
+            document.getElementById('selected-candidate-text').innerText = `Selected: ${name}`;
         }
+    });
 
-        async function prepareTransaction() {
-            const selectedCandidate = document.querySelector('input[name="candidate"]:checked');
-            if (!selectedCandidate) {
-                alert("Please select a candidate before voting.");
-                return;
-            }
+    function addLog(msg) {
+        const log = document.getElementById('proof-log');
+        const div = document.createElement('div');
+        div.innerHTML = `> ${msg}`;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
 
-            const candidateId = selectedCandidate.value;
-            const btn = document.getElementById('voteBtn');
-            const outputContainer = document.getElementById('outputContainer');
-            const terminal = document.getElementById('terminalOutput');
+    document.getElementById('btn-cast-vote').addEventListener('click', async () => {
+        if (!globalWallet || !selectedCandidate) return;
 
-            btn.disabled = true;
-            outputContainer.classList.remove('hidden');
-            terminal.style.color = "#f59e0b"; 
-            terminal.innerText = "Requesting Merkle proof from off-chain prover...";
-            btn.innerText = "Generating Proof...";
+        const modal = document.getElementById('proof-modal');
+        modal.style.display = 'flex';
+        
+        try {
+            const voter_id = globalWallet.selectedAddress;
+            
+            setTimeout(() => addLog("Hashing wallet public key into field element..."), 400);
+            
+            const response = await fetch('/api/voting/generate-proof/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    voter_id: voter_id,
+                    election_id: 1,
+                    candidate_id: selectedCandidate
+                })
+            });
 
-            try {
-                const response = await fetch(`/api/voting/generate-proof/?wallet=${globalWalletAddress}`);
-                const data = await response.json();
+            const data = await response.json();
+            
+            if (!response.ok) throw new Error(data.error || "Failed to generate proof");
+
+            setTimeout(() => addLog("Constructing Poseidon Merkle branch (Depth: 10)"), 1100);
+            setTimeout(() => addLog(`Nullifier mapped: <span style="color:#60a5fa">${data.calldata.nullifier.slice(0,12)}...</span>`), 1800);
+            
+            setTimeout(async () => {
+                addLog("Proof compiled. Awaiting Argent X signature...");
                 
-                if (data.status !== "success") {
-                    throw new Error(data.message || "Failed to generate proof.");
+                try {
+                    const call = {
+                        contractAddress: CONTRACT_ADDRESS,
+                        entrypoint: "cast_vote",
+                        calldata: [
+                            data.calldata.leaf,
+                            data.calldata.proof_len,
+                            ...data.calldata.proof,
+                            data.calldata.nullifier,
+                            data.calldata.hidden_vote
+                        ]
+                    };
+                    
+                    const tx = await globalWallet.account.execute([call]);
+                    addLog(`Transaction Sent! Hash: <a href="#" style="color:#a78bfa">${tx.transaction_hash.slice(0,10)}...</a>`);
+                    
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        window.location.reload();
+                    }, 2500);
+
+                } catch(txErr) {
+                    addLog(`<span style="color:#ef4444">Transaction Rejected: ${txErr.message}</span>`);
+                    setTimeout(() => modal.style.display = 'none', 3000);
                 }
 
-                terminal.innerText += `\nProof Generated. Root: ${data.merkle_root.substring(0, 10)}...`;
-                terminal.innerText += `\nPrompting wallet to sign transaction...`;
-                btn.innerText = "Sign in Wallet...";
+            }, 2600);
 
-                const targetAddress = CONTRACT_ADDRESS;
-
-                const tx = await starknetObj.account.execute({
-                    contractAddress: targetAddress,
-                    entrypoint: "cast_vote",
-                    calldata: [
-                        data.leaf,
-                        data.proof.length.toString(),
-                        ...data.proof,
-                        data.nullifier,
-                        candidateId
-                    ]
-                }); 
-                        
-
-                terminal.style.color = "#10b981"; 
-                terminal.innerText = `[SUCCESS] Transaction Executed!\nTx Hash: ${tx.transaction_hash}\nVote has been recorded on the blockchain.`;
-                btn.innerText = "Vote Cast Successfully";
-
-            } catch (error) {
-                terminal.style.color = "#ef4444";
-                terminal.innerText = `[ERROR] ${error.message}`;
-                btn.innerText = "Transaction Failed";
-                btn.disabled = false;
-            }
+        } catch (error) {
+            addLog(`<span style="color:#ef4444">Error: ${error.message}</span>`);
+            setTimeout(() => modal.style.display = 'none', 3000);
         }
-    </script>
-</body>
-</html>
-   
+    });
+</script>
+{% endblock %}

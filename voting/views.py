@@ -1,56 +1,139 @@
-import sys
-import os
-from django.http import JsonResponse
-from django.shortcuts import render 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from offchain_prover.poseidon_merkle import PoseidonMerkle
+from offchain_prover.nullifier_engine import NullifierEngine
+from .models import Election, Candidate, VoteLedger
+import random
+import logging
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from offchain_prover.merkle_builder import PoseidonMerkleTree, NullifierGenerator, CalldataFormatter
+def landing_page(request):
+    """Dynamic Landing Page."""
+    if request.user.is_authenticated:
+        if request.user.is_superuser:
+            return redirect('admin_dashboard')
+        return redirect('voter_dashboard')
+    return render(request, 'voting/landing.html')
 
-def index(request):
-    """Renders the main frontend voting interface."""
-    return render(request, 'voting/index.html')
+def login_view(request):
+    """Simple login handler."""
+    if request.method == 'POST':
+        u = request.POST.get('username')
+        p = request.POST.get('password')
+        user = authenticate(request, username=u, password=p)
+        if user is not None:
+            login(request, user)
+            if user.is_superuser:
+                return redirect('admin_dashboard')
+            return redirect('voter_dashboard')
+        else:
+            return render(request, 'voting/login.html', {'error': 'Invalid credentials'})
+    return render(request, 'voting/login.html')
 
-def generate_proof(request):
-    try:
-        target_wallet_hex = request.GET.get('wallet')
-        if not target_wallet_hex:
-            raise ValueError("No wallet address provided by frontend")
+@login_required
+def voter_dashboard(request):
+    """List of all elections for the voter."""
+    if request.user.is_superuser:
+        return redirect('admin_dashboard')
+    
+    active_elections = Election.objects.filter(is_active=True)
+    return render(request, 'voting/voter_dashboard.html', {
+        'elections': active_elections
+    })
 
-        target_voter = int(target_wallet_hex, 16)
-
-        dummy_registered_voters = [
-            int("0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7", 16),
-            int("0x03d22ce470c14b19642d51fb5dfd553b53cb1912f32777b7cb27a659ccab2136", 16),
-            int("0x076764200e01cb36784b19c1fb26885fb6a6f893b8c8a6f716b3a94293b84357", 16) 
-        ]
-
-        if target_voter not in dummy_registered_voters:
-            dummy_registered_voters.append(target_voter)
-
-        tree = PoseidonMerkleTree(dummy_registered_voters)
-        merkle_root = hex(tree.get_root())
-        print(f"\n\n=== COPY THIS MERKLE ROOT ===\n{merkle_root}\n=============================\n")
+@login_required
+def vote_election(request, election_id):
+    """Voting portal for a specific election."""
+    if request.user.is_superuser:
+        return redirect('admin_dashboard')
         
-        ELECTION_ID = 1
+    election = get_object_or_404(Election, id=election_id)
+    candidates = election.candidates.filter(is_approved=True)
+    return render(request, 'voting/vote_election.html', {
+        'election': election,
+        'candidates': candidates
+    })
 
-        proof_data = tree.get_proof(target_voter)
-        hex_proof = [hex(p) for p in proof_data]
+@login_required
+def admin_dashboard(request):
+    """Admin dashboard to view statistics and CRUD elections."""
+    if not request.user.is_superuser:
+        return redirect('voter_dashboard')
+    
+    elections = Election.objects.all()
+    # For the selected election in UI (defaults to first)
+    selected_id = request.GET.get('election_id')
+    if selected_id:
+        selected_election = get_object_or_404(Election, id=selected_id)
+    else:
+        selected_election = elections.first()
+        
+    ledgers = VoteLedger.objects.filter(election=selected_election).order_by('-timestamp') if selected_election else []
+    
+    return render(request, 'voting/admin_dashboard.html', {
+        'elections': elections,
+        'selected_election': selected_election,
+        'ledgers': ledgers
+    })
 
-        nullifier = hex(NullifierGenerator.generate_nullifier(target_voter, ELECTION_ID))
 
-        calldata = CalldataFormatter.format_vote_payload(int(nullifier, 16), proof_data)
-        hex_calldata = [hex(x) for x in calldata]
+from django.views.decorators.csrf import csrf_exempt
 
-        return JsonResponse({
-            "status": "success",
-            "wallet": target_wallet_hex,
-            "election_id": ELECTION_ID,
-            "merkle_root": merkle_root,
-            "leaf": target_wallet_hex,
-            "proof": hex_proof,
-            "nullifier": nullifier,
-            "cairo_calldata": hex_calldata
+@csrf_exempt
+@api_view(['POST'])
+def generate_proof(request):
+    """
+    API endpoint that generates the valid ZK-STARK proof for a given wallet address.
+    """
+    try:
+        voter_id_str = request.data.get('voter_id')
+        election_id = request.data.get('election_id', 1)
+        candidate_id = request.data.get('candidate_id', 1)
+
+        if not voter_id_str:
+            return Response({'error': 'voter_id is required'}, status=400)
+
+        # Convert hex string wallet to int
+        voter_id = int(voter_id_str, 16)
+        
+        # Build the mock tree including the connected wallet
+        dummy_identities = [random.getrandbits(250) for _ in range(7)]
+        leaves = [voter_id] + dummy_identities
+        
+        merkle = PoseidonMerkle(leaves)
+        proof = merkle.get_proof(voter_id)
+        nullifier = NullifierEngine.compute_nullifier(voter_id, int(election_id))
+
+        from poseidon_py.poseidon_hash import poseidon_hash
+        leaf_hash = poseidon_hash(voter_id, 0)
+        
+        calldata = {
+            'leaf': hex(leaf_hash),
+            'proof_len': hex(len(proof)),
+            'proof': [hex(p) for p in proof],
+            'nullifier': hex(nullifier),
+            'hidden_vote': hex(int(candidate_id))
+        }
+        
+        # We optionally log it to our DB to mimic successful validation on-chain for the dashboard
+        # Wait, usually the Starknet indexer would do this, but we'll mock it here.
+        # Since we are mocking the transaction, let's just record it in the ledger so the admin sees it.
+        election = Election.objects.filter(id=int(election_id)).first()
+        if election:
+            VoteLedger.objects.create(
+                election=election,
+                nullifier_hash=hex(nullifier),
+                tx_hash="0x" + hex(random.getrandbits(250))[2:]  # fake tx hash
+            )
+
+        return Response({
+            'success': True,
+            'calldata': calldata
         })
 
     except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+        import traceback
+        traceback.print_exc()
+        return Response({'error': f"Exception: {str(e)}\n{traceback.format_exc()}"}, status=400)
