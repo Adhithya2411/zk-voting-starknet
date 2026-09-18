@@ -255,7 +255,9 @@
     {% for candidate in candidates %}
     <div class="candidate-card {% if already_voted %}disabled{% endif %}">
         <div class="avatar-ring">
-            <div class="avatar-inner">{{ candidate.user.username|slice:":2" }}</div>
+            <div class="avatar-inner" style="overflow: hidden; padding: 0;">
+                <img src="{% static 'voting/images/' %}{{ candidate.user.username }}.jpg" alt="{{ candidate.user.username }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+            </div>
         </div>
 
         <div class="candidate-info">
