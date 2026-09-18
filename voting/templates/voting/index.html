@@ -197,7 +197,7 @@
 {% block content %}
 <div class="header-section">
     <div>
-        <p style="color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-size: 0.85rem;">Web3 Governance DAO</p>
+        <p class="text-primary" style="font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-size: 0.85rem;">Web3 Governance DAO</p>
         <h1>Cast Your Vote Securely</h1>
         <p>Select a candidate below. Your identity is mathematically shielded using Zero-Knowledge STARKs on the Starknet Layer-2 network.</p>
     </div>
@@ -212,7 +212,7 @@
         <div class="card-body">
             <div class="candidate-name">Alice Nakamoto</div>
             <div class="candidate-party">Decentralization Party</div>
-            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Focuses on layer-2 scaling and privacy-preserving infrastructure for the public good. Prioritizes cryptographic research.</p>
+            <p class="text-muted" style="font-size: 0.95rem; line-height: 1.5;">Focuses on layer-2 scaling and privacy-preserving infrastructure for the public good. Prioritizes cryptographic research.</p>
         </div>
     </div>
 
@@ -223,7 +223,7 @@
         <div class="card-body">
             <div class="candidate-name">Bob Stark</div>
             <div class="candidate-party">Rollup Coalition</div>
-            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Advocates for massive execution scale using Cairo and validium data availability. Proponent of high-frequency on-chain trading.</p>
+            <p class="text-muted" style="font-size: 0.95rem; line-height: 1.5;">Advocates for massive execution scale using Cairo and validium data availability. Proponent of high-frequency on-chain trading.</p>
         </div>
     </div>
 </div>
@@ -231,7 +231,7 @@
 <div class="vote-action-bar" id="action-bar">
     <div>
         <h3 id="selected-candidate-text" style="margin: 0; font-size: 1.3rem; font-weight: 700;">Selected: None</h3>
-        <p style="margin: 0.25rem 0 0 0; color: var(--text-muted); font-size: 0.95rem;">Gas fees subsidized by DAO Treasury</p>
+        <p class="text-muted" style="margin: 0.25rem 0 0 0; font-size: 0.95rem;">Gas fees subsidized by DAO Treasury</p>
     </div>
     <button class="btn-primary" id="btn-cast-vote" disabled style="padding: 1rem 2.5rem; font-size: 1.1rem;">Sign & Cast ZK-Vote</button>
 </div>
@@ -240,7 +240,7 @@
     <div class="glass-card modal-content">
         <div class="spinner"></div>
         <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem;">Synthesizing ZK-STARK Proof</h2>
-        <p style="color: var(--text-muted)">Generating deterministic nullifier and proving Merkle inclusion.</p>
+        <p class="text-muted">Generating deterministic nullifier and proving Merkle inclusion.</p>
         <div class="proof-log" id="proof-log">
             <div>> Initializing Poseidon Prover Context...</div>
         </div>

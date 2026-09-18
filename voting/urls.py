@@ -13,4 +13,5 @@ urlpatterns = [
     path('admin_dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
     path('generate-proof/', views.generate_proof, name='generate_proof'),
+    path('bind-wallet/', views.bind_wallet, name='bind_wallet'),
 ]

@@ -181,6 +181,14 @@
             box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
         }
 
+        /* ── Utility Classes ───────────────────────────────────── */
+        .text-primary { color: var(--primary); }
+        .text-muted { color: var(--text-muted); }
+        .text-success { color: var(--success); }
+        .border-top-secondary { border-top-color: var(--secondary) !important; }
+        .border-top-success { border-top-color: var(--success) !important; }
+
+
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -213,18 +221,20 @@
         </div>
 
         <div class="nav-right">
-            <div class="wallet-indicator" id="top-wallet">
-                <span class="status-dot"></span>
-                <span id="top-wallet-text">Not Connected</span>
-            </div>
-            
             {% if request.user.is_authenticated %}
+                {% if not request.user.is_superuser %}
+                    <button id="btn-connect-wallet" class="btn-primary">Connect Wallet</button>
+                    <div class="wallet-indicator" id="top-wallet" style="display: none; cursor: pointer;">
+                        <span class="status-dot"></span>
+                        <span id="top-wallet-text">Not Connected</span>
+                    </div>
+                {% endif %}
                 <form action="{% url 'logout' %}" method="post" style="margin: 0;">
                     {% csrf_token %}
                     <button type="submit" class="btn-secondary">Logout ({{ request.user.username }})</button>
                 </form>
             {% else %}
-                <button id="btn-connect-wallet" class="btn-primary">Connect Argent X</button>
+                <a href="{% url 'login' %}" class="btn-primary">Sign In</a>
             {% endif %}
         </div>
     </nav>
@@ -236,34 +246,90 @@
     <script>
         let globalWallet = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const btnConnect = document.getElementById('btn-connect-wallet');
             const walletInd = document.getElementById('top-wallet');
             const walletText = document.getElementById('top-wallet-text');
-            const dot = walletInd.querySelector('.status-dot');
+            const dot = walletInd ? walletInd.querySelector('.status-dot') : null;
 
             const connectWallet = async () => {
+                if (!walletInd) {
+                    console.log("No wallet indicator found, returning");
+                    return; // Admin or logged out
+                }
+                
                 try {
-                    // Mock wallet connection for preview
-                    globalWallet = { selectedAddress: "0x0" + Math.random().toString(16).slice(2, 64) };
+                    // Real Starknet Wallet Connection via Injected Provider
+                    const starknet = window.starknet_argentX || window.starknet;
+                    if (!starknet) {
+                        alert("No Starknet wallet detected! Please install Argent X.");
+                        return;
+                    }
+
+                    // For modern Argent X / Starknet.js
+                    let addresses = [];
+                    if (starknet.request) {
+                        addresses = await starknet.request({ type: "wallet_requestAccounts" });
+                    } else {
+                        addresses = await starknet.enable();
+                    }
                     
+                    globalWallet = starknet;
+                    
+                    // Fallbacks for fetching the selected address
+                    const address = (addresses && addresses.length > 0) ? addresses[0] 
+                                  : (globalWallet.selectedAddress || (globalWallet.account && globalWallet.account.address));
+                                  
+                    if (!address) {
+                        alert("Could not retrieve wallet address from Argent X.");
+                        return;
+                    }
+                    
+                    window.globalWalletAddress = address;
+
+                    // Bind wallet to Django user
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                    const response = await fetch('/api/voting/bind-wallet/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ wallet_address: address })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        alert("Wallet Identity Error: " + data.error);
+                        return;
+                    }
+
                     if (btnConnect) btnConnect.style.display = 'none';
+                    walletInd.style.display = 'flex';
                     dot.classList.add('connected');
-                    walletText.innerText = globalWallet.selectedAddress.slice(0, 6) + "..." + globalWallet.selectedAddress.slice(-4);
+                    walletText.innerText = address.slice(0, 6) + "..." + address.slice(-4);
                     
                     window.dispatchEvent(new Event('walletConnected'));
                 } catch (e) {
                     console.error("Connection failed", e);
+                    alert("Wallet Connection Failed: " + e.message);
                 }
             };
 
+            if (walletInd) {
+                walletInd.addEventListener('click', connectWallet);
+            }
+
             if (btnConnect) {
                 btnConnect.addEventListener('click', connectWallet);
-            } else {
-                // If the user is logged in, there is no top "Connect Wallet" button, 
-                // but we should still let them connect or auto-connect for voting
-                // Auto mock for demo purposes if button doesn't exist
-                setTimeout(connectWallet, 500);
+                // Attempt auto-connect for voters
+                setTimeout(() => {
+                    const starknet = window.starknet_argentX || window.starknet;
+                    if (starknet && starknet.isConnected) {
+                        connectWallet();
+                    }
+                }, 500);
             }
         });
     </script>

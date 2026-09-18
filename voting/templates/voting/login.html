@@ -3,59 +3,98 @@
 {% block extra_css %}
 <style>
     .login-container {
-        max-width: 400px;
-        margin: 4rem auto;
+        max-width: 420px;
+        margin: 3rem auto;
+    }
+    .login-card {
+        padding: 2.5rem;
+    }
+    .login-card h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
         text-align: center;
     }
+    .login-card .sub {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
     .form-group {
-        margin-bottom: 1.5rem;
-        text-align: left;
+        margin-bottom: 1.25rem;
     }
     .form-group label {
         display: block;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
         color: var(--text-muted);
+        font-size: 0.85rem;
+        font-weight: 500;
     }
     .form-control {
         width: 100%;
         padding: 0.75rem 1rem;
-        background: rgba(0,0,0,0.2);
+        background: rgba(0, 0, 0, 0.3);
         border: 1px solid var(--border);
         border-radius: 0.5rem;
         color: white;
         font-family: inherit;
+        font-size: 0.95rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
     }
     .form-control:focus {
         outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
+    .error-box {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.25rem;
+        font-size: 0.9rem;
+    }
+    .back-row {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+    .back-row a {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: color 0.2s;
+    }
+    .back-row a:hover { color: white; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="login-container">
-    <div class="glass-card">
-        <h2 style="margin-bottom: 2rem;">Sign In to Zk-Vote</h2>
-        
+    <div class="glass-card login-card">
+        <h2>Sign In</h2>
+        <p class="sub">Enter your credentials to access the platform.</p>
+
         {% if error %}
-        <div style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
-            {{ error }}
-        </div>
+        <div class="error-box">{{ error }}</div>
         {% endif %}
 
         <form method="POST" action="{% url 'login' %}">
             {% csrf_token %}
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" name="username" class="form-control" placeholder="admin or voter1" required>
+                <input type="text" name="username" class="form-control" placeholder="e.g. voter1 or admin" autocomplete="username" required autofocus>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" class="form-control" placeholder="admin123 or password123" required>
+                <input type="password" name="password" class="form-control" placeholder="Enter password" autocomplete="current-password" required>
             </div>
-            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 0.75rem; padding: 0.85rem;">Sign In</button>
         </form>
+    </div>
+    <div class="back-row">
+        <a href="{% url 'landing' %}">← Back to Home</a>
     </div>
 </div>
 {% endblock %}

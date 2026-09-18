@@ -119,3 +119,4 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 VOTING_CONTRACT_ADDRESS = '0x06cec8e5232e01b85f414399d931e0bf09bac109bd71a35eac6087ca7e8884f6'
+LOGIN_URL = '/api/voting/login/'
